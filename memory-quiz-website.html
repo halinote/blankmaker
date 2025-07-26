@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memory Quiz</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f7;
+            color: #1d1d1f;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .panel {
+            background-color: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        textarea, .quiz-area {
+            width: calc(100% - 40px);
+            border: none;
+            font-size: 16px;
+            line-height: 1.5;
+            margin: 0 20px;
+        }
+        textarea {
+            height: 150px;
+            background-color: #f0f0f0;
+            border-radius: 8px;
+            padding: 10px;
+            resize: vertical;
+        }
+        .quiz-area {
+            height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        button {
+            background-color: #0071e3;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0077ed;
+        }
+        .hidden-word {
+            background-color: #e0e0e0;
+            border-radius: 4px;
+            padding: 2px 4px;
+            margin: 0 2px;
+            display: inline-block;
+            color: #e0e0e0;
+        }
+        .hidden-word.revealed {
+            color: black;
+            background-color: #ffff00;
+        }
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        input[type="range"] {
+            width: 200px;
+        }
+        .sentence {
+            display: flex;
+            margin-bottom: 15px;
+        }
+        .sentence-number {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-right: 10px;
+            width: 30px;
+        }
+        .number {
+            font-weight: bold;
+            color: #0071e3;
+        }
+        .sentence-buttons {
+            display: flex;
+            gap: 2px;
+            margin-top: 2px;
+        }
+        .answer-btn, .copy-btn {
+            width: 12px;
+            height: 12px;
+            border: none;
+            background-color: #87CEFA;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+            color: white;
+            padding: 0;
+        }
+        .answer-btn {
+            border-radius: 50%;
+        }
+        .copy-btn {
+            border-radius: 2px;
+        }
+        .sentence-content {
+            flex-grow: 1;
+        }
+        .check-box {
+            width: 20px;
+            height: 20px;
+            background-color: #e0e0e0;
+            border-radius: 4px;
+            margin-left: 10px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .completed .check-box {
+            background-color: #a0a0a0;
+        }
+        .completed {
+            opacity: 0.5;
+        }
+        #progress {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background-color: #0071e3;
+            transition: width 0.3s ease;
+        }
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            display: none;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="panel">
+            <h2>Input Text</h2>
+            <textarea id="input-text" placeholder="Enter your text here..."></textarea>
+        </div>
+        <div class="panel">
+            <h2>Quiz</h2>
+            <div id="progress"></div>
+            <div class="progress-bar">
+                <div class="progress-bar-fill" style="width: 0%;"></div>
+            </div>
+            <div id="quiz-area" class="quiz-area"></div>
+            <div class="controls">
+                <button id="generate-quiz">Generate Quiz</button>
+                <button id="download-quiz">Download Quiz</button>
+                <div>
+                    <label for="hide-percentage">Hide percentage: <span id="percentage-value">20</span>%</label>
+                    <input type="range" id="hide-percentage" min="10" max="100" value="20">
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="toast" class="toast"></div>
+
+    <script>
+        const inputText = document.getElementById('input-text');
+        const quizArea = document.getElementById('quiz-area');
+        const generateQuizBtn = document.getElementById('generate-quiz');
+        const downloadQuizBtn = document.getElementById('download-quiz');
+        const hidePercentage = document.getElementById('hide-percentage');
+        const percentageValue = document.getElementById('percentage-value');
+        const progressDiv = document.getElementById('progress');
+        const toast = document.getElementById('toast');
+
+        generateQuizBtn.addEventListener('click', generateQuiz);
+        downloadQuizBtn.addEventListener('click', downloadQuiz);
+        hidePercentage.addEventListener('input', updatePercentage);
+
+        function updatePercentage() {
+            percentageValue.textContent = hidePercentage.value;
+        }
+
+        function generateQuiz() {
+            const text = inputText.value;
+            const sentences = text.split(/(?<=[.!?])\s+/);
+            const percentToHide = parseInt(hidePercentage.value) / 100;
+            
+            const quizHtml = sentences.map((sentence, index) => {
+                const words = sentence.split(/\s+/);
+                const numWordsToHide = Math.floor(words.length * percentToHide);
+
+                let hiddenIndices = new Set();
+                while (hiddenIndices.size < numWordsToHide) {
+                    hiddenIndices.add(Math.floor(Math.random() * (words.length - 1)));
+                }
+
+                const processedWords = words.map((word, wordIndex) => {
+                    if (hiddenIndices.has(wordIndex)) {
+                        return `<span class="hidden-word" data-word="${word}">${'_'.repeat(word.length)}</span>`;
+                    }
+                    return word;
+                }).join(' ');
+
+                const lastChar = sentence.trim().slice(-1);
+                const processedSentence = processedWords + (lastChar === '.' || lastChar === '!' || lastChar === '?' ? lastChar : '');
+
+                return `
+                    <div class="sentence">
+                        <div class="sentence-number">
+                            <span class="number">${index + 1}.</span>
+                            <div class="sentence-buttons">
+                                <button class="answer-btn" title="Show answer">A</button>
+                                <button class="copy-btn" title="Copy sentence">&#9636;&#9636;</button>
+                            </div>
+                        </div>
+                        <span class="sentence-content">${processedSentence}</span>
+                        <span class="check-box" title="Mark as completed"></span>
+                    </div>`;
+            }).join('');
+
+            quizArea.innerHTML = quizHtml;
+
+            document.querySelectorAll('.answer-btn').forEach(btn => {
+                btn.addEventListener('mousedown', revealAnswers);
+                btn.addEventListener('mouseup', hideAnswers);
+                btn.addEventListener('mouseleave', hideAnswers);
+                btn.addEventListener('touchstart', revealAnswers);
+                btn.addEventListener('touchend', hideAnswers);
+            });
+
+            document.querySelectorAll('.copy-btn').forEach(btn => {
+                btn.addEventListener('click', copySentence);
+            });
+
+            document.querySelectorAll('.check-box').forEach(box => {
+                box.addEventListener('click', toggleCompleted);
+            });
+
+            updateProgress();
+        }
+
+        function revealAnswers(event) {
+            const sentenceContent = event.target.closest('.sentence').querySelector('.sentence-content');
+            sentenceContent.querySelectorAll('.hidden-word').forEach(word => {
+                word.textContent = word.dataset.word;
+                word.style.color = 'black';
+            });
+        }
+
+        function hideAnswers(event) {
+            const sentenceContent = event.target.closest('.sentence').querySelector('.sentence-content');
+            sentenceContent.querySelectorAll('.hidden-word:not(.revealed)').forEach(word => {
+                word.textContent = '_'.repeat(word.dataset.word.length);
+                word.style.color = '#e0e0e0';
+            });
+        }
+
+        function toggleCompleted(event) {
+            const sentence = event.target.closest('.sentence');
+            sentence.classList.toggle('completed');
+            const hiddenWords = sentence.querySelectorAll('.hidden-word');
+            hiddenWords.forEach(word => {
+                word.classList.toggle('revealed');
+                if (word.classList.contains('revealed')) {
+                    word.textContent = word.dataset.word;
+                } else {
+                    word.textContent = '_'.repeat(word.dataset.word.length);
+                }
+            });
+            updateProgress();
+            showToast('Memorized!');
+        }
+
+        function copySentence(event) {
+            const sentence = event.target.closest('.sentence');
+            const sentenceContent = sentence.querySelector('.sentence-content').textContent;
+            
+            const textArea = document.createElement('textarea');
+            textArea.value = sentenceContent;
+            document.body.appendChild(textArea);
+            textArea.select();
+            
+            try {
+                document.execCommand('copy');
+                showToast('Copied!');
+            } catch (err) {
+                console.error('Failed to copy: ', err);
+                showToast('Copy failed');
+            }
+            
+            document.body.removeChild(textArea);
+        }
+
+        function downloadQuiz() {
+            const quizContent = quizArea.innerText;
+            const blob = new Blob([quizContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'memory_quiz.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function updateProgress() {
+            const totalSentences = document.querySelectorAll('.sentence').length;
+            const memorizedSentences = document.querySelectorAll('.sentence.completed').length;
+            const percentage = Math.round((memorizedSentences / totalSentences) * 100) || 0;
+            progressDiv.textContent = `Progress: ${memorizedSentences}/${totalSentences} (${percentage}%)`;
+            
+            const progressBarFill = document.querySelector('.progress-bar-fill');
+            progressBarFill.style.width = `${percentage}%`;
+        }
+
+        function showToast(message) {
+            toast.textContent = message;
+            toast.style.display = 'block';
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 2000);
+        }
+
+        // 초기 진행 상황 업데이트
+        updateProgress();
+    </script>
+</body>
+</html>
