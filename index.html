@@ -65,11 +65,10 @@
             margin: 0 2px;
             display: inline-block;
             color: #e0e0e0;
-            cursor: pointer;
         }
         .hidden-word.revealed {
             color: black;
-            background-color: pink;
+            background-color: #ffff00;
         }
         .controls {
             margin-top: 20px;
@@ -123,10 +122,10 @@
             flex-grow: 1;
         }
         .check-box {
-            width: 15px;
-            height: 15px;
-            border: 2px solid #a0a0a0;
-            border-radius: 2px;
+            width: 20px;
+            height: 20px;
+            background-color: #e0e0e0;
+            border-radius: 4px;
             margin-left: 10px;
             cursor: pointer;
             flex-shrink: 0;
@@ -166,6 +165,122 @@
             border-radius: 5px;
             display: none;
             z-index: 1000;
+        }
+
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .container {
+                gap: 15px;
+            }
+            
+            .panel {
+                padding: 15px;
+                border-radius: 8px;
+            }
+            
+            textarea, .quiz-area {
+                width: 100%;
+                margin: 0;
+                font-size: 14px;
+            }
+            
+            textarea {
+                height: 120px;
+            }
+            
+            .quiz-area {
+                height: 300px;
+            }
+            
+            .controls {
+                flex-direction: column;
+                gap: 15px;
+                align-items: stretch;
+            }
+            
+            .controls > div {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+            
+            button {
+                width: 100%;
+                padding: 12px 15px;
+                font-size: 16px;
+            }
+            
+            input[type="range"] {
+                width: 100%;
+            }
+            
+            .sentence {
+                margin-bottom: 20px;
+            }
+            
+            .sentence-number {
+                width: 40px;
+                margin-right: 8px;
+            }
+            
+            .number {
+                font-size: 14px;
+            }
+            
+            .answer-btn, .copy-btn {
+                width: 16px;
+                height: 16px;
+                font-size: 10px;
+            }
+            
+            .check-box {
+                width: 24px;
+                height: 24px;
+                margin-left: 8px;
+            }
+            
+            .hidden-word {
+                padding: 3px 5px;
+                margin: 1px 2px;
+                font-size: 14px;
+                min-height: 24px;
+                display: inline-flex;
+                align-items: center;
+            }
+            
+            #progress {
+                font-size: 16px;
+            }
+            
+            h2 {
+                font-size: 20px;
+                margin-top: 0;
+            }
+        }
+
+        /* Small Mobile Styles */
+        @media (max-width: 480px) {
+            body {
+                padding: 8px;
+            }
+            
+            .panel {
+                padding: 12px;
+            }
+            
+            .sentence-content {
+                font-size: 13px;
+                line-height: 1.6;
+            }
+            
+            .toast {
+                bottom: 10px;
+                font-size: 14px;
+            }
         }
     </style>
 </head>
@@ -223,7 +338,7 @@
 
                 let hiddenIndices = new Set();
                 while (hiddenIndices.size < numWordsToHide) {
-                    hiddenIndices.add(Math.floor(Math.random() * (words.length - 1)));
+                    hiddenIndices.add(Math.floor(Math.random() * words.length));
                 }
 
                 const processedWords = words.map((word, wordIndex) => {
@@ -268,10 +383,6 @@
                 box.addEventListener('click', toggleCompleted);
             });
 
-            document.querySelectorAll('.hidden-word').forEach(word => {
-                word.addEventListener('click', toggleWord);
-            });
-
             updateProgress();
         }
 
@@ -291,19 +402,18 @@
             });
         }
 
-        function toggleWord(event) {
-            const word = event.target;
-            word.classList.toggle('revealed');
-            if (word.classList.contains('revealed')) {
-                word.textContent = word.dataset.word;
-            } else {
-                word.textContent = '_'.repeat(word.dataset.word.length);
-            }
-        }
-
         function toggleCompleted(event) {
             const sentence = event.target.closest('.sentence');
             sentence.classList.toggle('completed');
+            const hiddenWords = sentence.querySelectorAll('.hidden-word');
+            hiddenWords.forEach(word => {
+                word.classList.toggle('revealed');
+                if (word.classList.contains('revealed')) {
+                    word.textContent = word.dataset.word;
+                } else {
+                    word.textContent = '_'.repeat(word.dataset.word.length);
+                }
+            });
             updateProgress();
             showToast('Memorized!');
         }
