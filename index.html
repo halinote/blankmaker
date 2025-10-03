@@ -71,6 +71,62 @@
             color: black;
             background-color: pink;
         }
+        
+        /* Writing mode input */
+        .hidden-word-input {
+            background-color: #fff;
+            border: 2px solid #0071e3;
+            border-radius: 4px;
+            padding: 2px 6px;
+            margin: 0 2px;
+            display: inline-block;
+            min-width: 60px;
+            font-size: 16px;
+            font-family: inherit;
+            outline: none;
+        }
+        .hidden-word-input.correct {
+            background-color: #c8e6c9;
+            border-color: #4caf50;
+            color: #2e7d32;
+        }
+        .hidden-word-input.incorrect {
+            background-color: #ffcdd2;
+            border-color: #f44336;
+            animation: shake 0.3s;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        
+        /* Mode toggle buttons */
+        .mode-toggle {
+            display: flex;
+            gap: 5px;
+            background-color: #f0f0f0;
+            padding: 4px;
+            border-radius: 8px;
+        }
+        .mode-btn {
+            padding: 6px 12px;
+            border: none;
+            background-color: transparent;
+            color: #666;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .mode-btn:hover {
+            background-color: #e0e0e0;
+        }
+        .mode-btn.active {
+            background-color: #0071e3;
+            color: white;
+        }
         .controls {
             margin-top: 20px;
             display: flex;
@@ -269,6 +325,21 @@
                 align-items: center;
             }
             
+            .hidden-word-input {
+                font-size: 14px;
+                padding: 4px 8px;
+                min-width: 50px;
+            }
+            
+            .mode-toggle {
+                padding: 3px;
+            }
+            
+            .mode-btn {
+                padding: 5px 10px;
+                font-size: 12px;
+            }
+            
             #progress {
                 font-size: 16px;
             }
@@ -314,7 +385,13 @@
             <textarea id="input-text" placeholder="Enter your text here..."></textarea>
         </div>
         <div class="panel">
-            <h2>Quiz</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2 style="margin: 0;">Quiz</h2>
+                <div class="mode-toggle">
+                    <button class="mode-btn active" id="speaking-mode">🗣️ Speaking</button>
+                    <button class="mode-btn" id="writing-mode">✍️ Writing</button>
+                </div>
+            </div>
             <div id="progress"></div>
             <div class="progress-bar">
                 <div class="progress-bar-fill" style="width: 0%;"></div>
@@ -341,10 +418,34 @@
         const percentageValue = document.getElementById('percentage-value');
         const progressDiv = document.getElementById('progress');
         const toast = document.getElementById('toast');
+        const speakingModeBtn = document.getElementById('speaking-mode');
+        const writingModeBtn = document.getElementById('writing-mode');
+        
+        let currentMode = 'speaking'; // 'speaking' or 'writing'
 
         generateQuizBtn.addEventListener('click', generateQuiz);
         downloadQuizBtn.addEventListener('click', downloadQuiz);
         hidePercentage.addEventListener('input', updatePercentage);
+        speakingModeBtn.addEventListener('click', () => switchMode('speaking'));
+        writingModeBtn.addEventListener('click', () => switchMode('writing'));
+
+        function switchMode(mode) {
+            currentMode = mode;
+            
+            // Update button states
+            if (mode === 'speaking') {
+                speakingModeBtn.classList.add('active');
+                writingModeBtn.classList.remove('active');
+            } else {
+                writingModeBtn.classList.add('active');
+                speakingModeBtn.classList.remove('active');
+            }
+            
+            // Regenerate quiz with new mode
+            if (quizArea.innerHTML.trim() !== '') {
+                generateQuiz();
+            }
+        }
 
         function updatePercentage() {
             percentageValue.textContent = hidePercentage.value;
@@ -374,7 +475,11 @@
 
                 const processedWords = words.map((word, wordIndex) => {
                     if (hiddenIndices.has(wordIndex)) {
-                        return `<span class="hidden-word" data-word="${word}">${'_'.repeat(word.length)}</span>`;
+                        if (currentMode === 'writing') {
+                            return `<input type="text" class="hidden-word-input" data-word="${word}" placeholder="${'_'.repeat(word.length)}" style="width: ${word.length * 12 + 20}px;">`;
+                        } else {
+                            return `<span class="hidden-word" data-word="${word}">${'_'.repeat(word.length)}</span>`;
+                        }
                     }
                     return word;
                 }).join(' ');
@@ -417,6 +522,17 @@
             document.querySelectorAll('.hidden-word').forEach(word => {
                 word.addEventListener('click', toggleWord);
             });
+            
+            // Writing mode: Add input event listeners
+            document.querySelectorAll('.hidden-word-input').forEach(input => {
+                input.addEventListener('input', handleWritingInput);
+                input.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        checkWritingAnswer(input);
+                    }
+                });
+                input.addEventListener('blur', () => checkWritingAnswer(input));
+            });
 
             // Restore completed sentences by index
             document.querySelectorAll('.sentence').forEach((sentenceEl, idx) => {
@@ -427,20 +543,94 @@
 
             updateProgress();
         }
+        
+        function handleWritingInput(event) {
+            const input = event.target;
+            input.classList.remove('incorrect', 'correct');
+        }
+        
+        function checkWritingAnswer(input) {
+            if (input.classList.contains('correct')) return; // Already correct
+            
+            const userAnswer = input.value.trim().toLowerCase();
+            const correctAnswer = input.dataset.word.toLowerCase();
+            
+            // Remove punctuation for comparison
+            const cleanUserAnswer = userAnswer.replace(/[.,!?;:'"]/g, '');
+            const cleanCorrectAnswer = correctAnswer.replace(/[.,!?;:'"]/g, '');
+            
+            if (cleanUserAnswer === cleanCorrectAnswer) {
+                input.classList.add('correct');
+                input.classList.remove('incorrect');
+                input.value = input.dataset.word; // Show correct capitalization
+                input.readOnly = true;
+                showToast('Correct! ✓');
+                
+                // Move to next input
+                focusNextInput(input);
+            } else if (userAnswer !== '') {
+                input.classList.add('incorrect');
+                input.classList.remove('correct');
+                setTimeout(() => {
+                    input.classList.remove('incorrect');
+                }, 300);
+            }
+        }
+        
+        function focusNextInput(currentInput) {
+            const allInputs = Array.from(document.querySelectorAll('.hidden-word-input'));
+            const currentIndex = allInputs.indexOf(currentInput);
+            
+            // Find next empty input
+            for (let i = currentIndex + 1; i < allInputs.length; i++) {
+                if (!allInputs[i].classList.contains('correct')) {
+                    setTimeout(() => {
+                        allInputs[i].focus();
+                    }, 200);
+                    return;
+                }
+            }
+            
+            // If no next input, blur current
+            currentInput.blur();
+        }
+        
 
         function revealAnswers(event) {
             const sentenceContent = event.target.closest('.sentence').querySelector('.sentence-content');
+            
+            // Speaking mode: reveal hidden words
             sentenceContent.querySelectorAll('.hidden-word').forEach(word => {
                 word.textContent = word.dataset.word;
                 word.style.color = 'black';
+            });
+            
+            // Writing mode: show answers in inputs
+            sentenceContent.querySelectorAll('.hidden-word-input').forEach(input => {
+                if (!input.classList.contains('correct')) {
+                    input.value = input.dataset.word;
+                    input.style.color = '#0071e3';
+                    input.style.fontWeight = 'bold';
+                }
             });
         }
 
         function hideAnswers(event) {
             const sentenceContent = event.target.closest('.sentence').querySelector('.sentence-content');
+            
+            // Speaking mode: hide words
             sentenceContent.querySelectorAll('.hidden-word:not(.revealed)').forEach(word => {
                 word.textContent = '_'.repeat(word.dataset.word.length);
                 word.style.color = '#e0e0e0';
+            });
+            
+            // Writing mode: clear inputs
+            sentenceContent.querySelectorAll('.hidden-word-input').forEach(input => {
+                if (!input.classList.contains('correct')) {
+                    input.value = '';
+                    input.style.color = '';
+                    input.style.fontWeight = '';
+                }
             });
         }
 
