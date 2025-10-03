@@ -65,10 +65,11 @@
             margin: 0 2px;
             display: inline-block;
             color: #e0e0e0;
+            cursor: pointer;
         }
         .hidden-word.revealed {
             color: black;
-            background-color: #ffff00;
+            background-color: pink;
         }
         .controls {
             margin-top: 20px;
@@ -124,14 +125,29 @@
         .check-box {
             width: 20px;
             height: 20px;
-            background-color: #e0e0e0;
+            border: 2px solid #a0a0a0;
             border-radius: 4px;
             margin-left: 10px;
             cursor: pointer;
             flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+        .check-box:hover {
+            border-color: #4caf50;
+            transform: scale(1.1);
         }
         .completed .check-box {
-            background-color: #a0a0a0;
+            background-color: #4caf50;
+            border-color: #4caf50;
+        }
+        .completed .check-box::after {
+            content: '✓';
+            color: white;
+            font-weight: bold;
         }
         .completed {
             opacity: 0.5;
@@ -232,15 +248,16 @@
             }
             
             .answer-btn, .copy-btn {
-                width: 16px;
-                height: 16px;
+                width: 20px;
+                height: 20px;
                 font-size: 10px;
             }
             
             .check-box {
-                width: 24px;
-                height: 24px;
+                width: 28px;
+                height: 28px;
                 margin-left: 8px;
+                font-size: 18px;
             }
             
             .hidden-word {
@@ -281,6 +298,12 @@
                 bottom: 10px;
                 font-size: 14px;
             }
+            
+            button {
+                padding: 14px 16px;
+                font-size: 15px;
+                font-weight: 500;
+            }
         }
     </style>
 </head>
@@ -302,7 +325,7 @@
                 <button id="download-quiz">Download Quiz</button>
                 <div>
                     <label for="hide-percentage">Hide percentage: <span id="percentage-value">20</span>%</label>
-                    <input type="range" id="hide-percentage" min="10" max="100" value="20">
+                    <input type="range" id="hide-percentage" min="0" max="100" value="20">
                 </div>
             </div>
         </div>
@@ -331,6 +354,14 @@
             const text = inputText.value;
             const sentences = text.split(/(?<=[.!?])\s+/);
             const percentToHide = parseInt(hidePercentage.value) / 100;
+            
+            // Save currently completed sentence indices
+            const completedIndices = new Set();
+            document.querySelectorAll('.sentence').forEach((sentenceEl, idx) => {
+                if (sentenceEl.classList.contains('completed')) {
+                    completedIndices.add(idx);
+                }
+            });
             
             const quizHtml = sentences.map((sentence, index) => {
                 const words = sentence.split(/\s+/);
@@ -383,6 +414,17 @@
                 box.addEventListener('click', toggleCompleted);
             });
 
+            document.querySelectorAll('.hidden-word').forEach(word => {
+                word.addEventListener('click', toggleWord);
+            });
+
+            // Restore completed sentences by index
+            document.querySelectorAll('.sentence').forEach((sentenceEl, idx) => {
+                if (completedIndices.has(idx)) {
+                    sentenceEl.classList.add('completed');
+                }
+            });
+
             updateProgress();
         }
 
@@ -402,18 +444,19 @@
             });
         }
 
+        function toggleWord(event) {
+            const word = event.target;
+            word.classList.toggle('revealed');
+            if (word.classList.contains('revealed')) {
+                word.textContent = word.dataset.word;
+            } else {
+                word.textContent = '_'.repeat(word.dataset.word.length);
+            }
+        }
+
         function toggleCompleted(event) {
             const sentence = event.target.closest('.sentence');
             sentence.classList.toggle('completed');
-            const hiddenWords = sentence.querySelectorAll('.hidden-word');
-            hiddenWords.forEach(word => {
-                word.classList.toggle('revealed');
-                if (word.classList.contains('revealed')) {
-                    word.textContent = word.dataset.word;
-                } else {
-                    word.textContent = '_'.repeat(word.dataset.word.length);
-                }
-            });
             updateProgress();
             showToast('Memorized!');
         }
