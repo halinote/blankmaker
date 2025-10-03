@@ -238,6 +238,140 @@
             display: none;
             z-index: 1000;
         }
+        
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.3s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .modal-header h3 {
+            margin: 0;
+            font-size: 20px;
+        }
+        
+        .modal-close {
+            font-size: 28px;
+            font-weight: bold;
+            color: #999;
+            cursor: pointer;
+            line-height: 1;
+        }
+        
+        .modal-close:hover {
+            color: #333;
+        }
+        
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            max-height: calc(80vh - 80px);
+        }
+        
+        .saved-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .saved-item {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background-color 0.2s;
+        }
+        
+        .saved-item:hover {
+            background-color: #f0f0f0;
+        }
+        
+        .saved-item-info {
+            flex-grow: 1;
+            cursor: pointer;
+        }
+        
+        .saved-item-title {
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+        
+        .saved-item-date {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .saved-item-actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .saved-item-btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: opacity 0.2s;
+        }
+        
+        .saved-item-btn:hover {
+            opacity: 0.8;
+        }
+        
+        .load-btn {
+            background-color: #0071e3;
+            color: white;
+        }
+        
+        .delete-btn {
+            background-color: #f44336;
+            color: white;
+        }
+        
+        .empty-message {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+            font-size: 14px;
+        }
 
         /* Mobile Responsive Styles */
         @media (max-width: 768px) {
@@ -381,7 +515,13 @@
 <body>
     <div class="container">
         <div class="panel">
-            <h2>Input Text</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h2 style="margin: 0;">Input Text</h2>
+                <button id="manage-saves-btn" style="padding: 8px 15px; font-size: 14px;">📚 My Quizzes</button>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <input type="text" id="quiz-title" placeholder="Quiz title (optional)" style="width: 100%; padding: 8px; border: 1px solid #d0d0d0; border-radius: 6px; font-size: 14px;">
+            </div>
             <textarea id="input-text" placeholder="Enter your text here..."></textarea>
         </div>
         <div class="panel">
@@ -408,6 +548,26 @@
         </div>
     </div>
     <div id="toast" class="toast"></div>
+    
+    <!-- Save Management Modal -->
+    <div id="save-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📚 My Saved Quizzes</h3>
+                <span class="modal-close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 15px;">
+                    <button id="save-current-btn" style="width: 100%; padding: 12px; background-color: #4caf50; color: white; border: none; border-radius: 6px; font-size: 15px; cursor: pointer;">
+                        💾 Save Current Quiz
+                    </button>
+                </div>
+                <div id="saved-list" class="saved-list">
+                    <!-- Saved quizzes will be listed here -->
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script>
         const inputText = document.getElementById('input-text');
@@ -420,14 +580,38 @@
         const toast = document.getElementById('toast');
         const speakingModeBtn = document.getElementById('speaking-mode');
         const writingModeBtn = document.getElementById('writing-mode');
+        const quizTitle = document.getElementById('quiz-title');
+        const manageSavesBtn = document.getElementById('manage-saves-btn');
+        const saveModal = document.getElementById('save-modal');
+        const modalClose = document.querySelector('.modal-close');
+        const saveCurrentBtn = document.getElementById('save-current-btn');
+        const savedList = document.getElementById('saved-list');
         
         let currentMode = 'speaking'; // 'speaking' or 'writing'
+        const STORAGE_KEY = 'memoryQuiz_savedQuizzes';
 
         generateQuizBtn.addEventListener('click', generateQuiz);
         downloadQuizBtn.addEventListener('click', downloadQuiz);
         hidePercentage.addEventListener('input', updatePercentage);
         speakingModeBtn.addEventListener('click', () => switchMode('speaking'));
         writingModeBtn.addEventListener('click', () => switchMode('writing'));
+        manageSavesBtn.addEventListener('click', openSaveModal);
+        modalClose.addEventListener('click', closeSaveModal);
+        saveCurrentBtn.addEventListener('click', saveCurrentQuiz);
+        
+        // Close modal when clicking outside
+        window.addEventListener('click', (e) => {
+            if (e.target === saveModal) {
+                closeSaveModal();
+            }
+        });
+        
+        // Auto-save current text
+        inputText.addEventListener('input', autoSave);
+        quizTitle.addEventListener('input', autoSave);
+        
+        // Load auto-saved text on startup
+        loadAutoSave();
 
         function switchMode(mode) {
             currentMode = mode;
@@ -450,6 +634,141 @@
         function updatePercentage() {
             percentageValue.textContent = hidePercentage.value;
         }
+        
+        // Auto-save functions
+        function autoSave() {
+            localStorage.setItem('memoryQuiz_autoSave', JSON.stringify({
+                text: inputText.value,
+                title: quizTitle.value,
+                percentage: hidePercentage.value
+            }));
+        }
+        
+        function loadAutoSave() {
+            const saved = localStorage.getItem('memoryQuiz_autoSave');
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    inputText.value = data.text || '';
+                    quizTitle.value = data.title || '';
+                    if (data.percentage) {
+                        hidePercentage.value = data.percentage;
+                        percentageValue.textContent = data.percentage;
+                    }
+                } catch (e) {
+                    console.error('Error loading auto-save:', e);
+                }
+            }
+        }
+        
+        // Modal functions
+        function openSaveModal() {
+            renderSavedList();
+            saveModal.style.display = 'block';
+        }
+        
+        function closeSaveModal() {
+            saveModal.style.display = 'none';
+        }
+        
+        function getSavedQuizzes() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            return saved ? JSON.parse(saved) : [];
+        }
+        
+        function saveQuizzes(quizzes) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(quizzes));
+        }
+        
+        function saveCurrentQuiz() {
+            const text = inputText.value.trim();
+            if (!text) {
+                showToast('Please enter some text first!');
+                return;
+            }
+            
+            const title = quizTitle.value.trim() || `Quiz ${new Date().toLocaleDateString()}`;
+            const quizzes = getSavedQuizzes();
+            
+            const newQuiz = {
+                id: Date.now(),
+                title: title,
+                text: text,
+                percentage: hidePercentage.value,
+                mode: currentMode,
+                date: new Date().toISOString(),
+                dateString: new Date().toLocaleString()
+            };
+            
+            quizzes.unshift(newQuiz);
+            saveQuizzes(quizzes);
+            renderSavedList();
+            showToast('Quiz saved! 💾');
+        }
+        
+        function loadQuiz(id) {
+            const quizzes = getSavedQuizzes();
+            const quiz = quizzes.find(q => q.id === id);
+            
+            if (quiz) {
+                inputText.value = quiz.text;
+                quizTitle.value = quiz.title;
+                hidePercentage.value = quiz.percentage || 20;
+                percentageValue.textContent = quiz.percentage || 20;
+                
+                if (quiz.mode) {
+                    switchMode(quiz.mode);
+                }
+                
+                closeSaveModal();
+                showToast('Quiz loaded! 📖');
+                autoSave();
+            }
+        }
+        
+        function deleteQuiz(id) {
+            if (!confirm('Are you sure you want to delete this quiz?')) {
+                return;
+            }
+            
+            let quizzes = getSavedQuizzes();
+            quizzes = quizzes.filter(q => q.id !== id);
+            saveQuizzes(quizzes);
+            renderSavedList();
+            showToast('Quiz deleted! 🗑️');
+        }
+        
+        function renderSavedList() {
+            const quizzes = getSavedQuizzes();
+            
+            if (quizzes.length === 0) {
+                savedList.innerHTML = '<div class="empty-message">No saved quizzes yet.<br>Click "Save Current Quiz" to get started!</div>';
+                return;
+            }
+            
+            savedList.innerHTML = quizzes.map(quiz => `
+                <div class="saved-item">
+                    <div class="saved-item-info" onclick="loadQuiz(${quiz.id})">
+                        <div class="saved-item-title">${escapeHtml(quiz.title)}</div>
+                        <div class="saved-item-date">📅 ${quiz.dateString}</div>
+                    </div>
+                    <div class="saved-item-actions">
+                        <button class="saved-item-btn load-btn" onclick="loadQuiz(${quiz.id})">Load</button>
+                        <button class="saved-item-btn delete-btn" onclick="deleteQuiz(${quiz.id})">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Make functions global for onclick handlers
+        window.loadQuiz = loadQuiz;
+        window.deleteQuiz = deleteQuiz;
 
         function generateQuiz() {
             const text = inputText.value;
@@ -466,11 +785,22 @@
             
             const quizHtml = sentences.map((sentence, index) => {
                 const words = sentence.split(/\s+/);
-                const numWordsToHide = Math.floor(words.length * percentToHide);
+                
+                // Filter only English words (words containing at least one Latin letter)
+                const englishWordIndices = [];
+                words.forEach((word, idx) => {
+                    if (/[a-zA-Z]/.test(word)) {
+                        englishWordIndices.push(idx);
+                    }
+                });
+                
+                // Calculate how many English words to hide
+                const numWordsToHide = Math.floor(englishWordIndices.length * percentToHide);
 
                 let hiddenIndices = new Set();
-                while (hiddenIndices.size < numWordsToHide) {
-                    hiddenIndices.add(Math.floor(Math.random() * words.length));
+                while (hiddenIndices.size < numWordsToHide && englishWordIndices.length > 0) {
+                    const randomIndex = englishWordIndices[Math.floor(Math.random() * englishWordIndices.length)];
+                    hiddenIndices.add(randomIndex);
                 }
 
                 const processedWords = words.map((word, wordIndex) => {
