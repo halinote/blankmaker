@@ -130,8 +130,75 @@
         .controls {
             margin-top: 20px;
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .controls-slider {
+            margin-left: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .completion-tracker {
+            margin-top: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+        }
+        .completion-label {
+            font-weight: 600;
+            color: #333;
+        }
+        .completion-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .completion-btn {
+            width: 30px;
+            height: 30px;
+            border-radius: 6px;
+            border: 1px solid #d0d0d0;
+            background-color: #f6f6f6;
+            color: #333;
+            font-size: 18px;
+            line-height: 1;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        .completion-btn:hover {
+            background-color: #eaeaea;
+        }
+        .completion-value {
+            min-width: 32px;
+            text-align: center;
+            font-weight: 600;
+            color: #0071e3;
+        }
+        .percentage-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .percentage-btn {
+            padding: 4px 10px;
+            border: 1px solid #d0d0d0;
+            border-radius: 6px;
+            background-color: #f6f6f6;
+            color: #333;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .percentage-btn:hover {
+            background-color: #eaeaea;
+        }
+        .percentage-btn.active {
+            background-color: #0071e3;
+            color: white;
+            border-color: #0071e3;
         }
         input[type="range"] {
             width: 200px;
@@ -139,6 +206,7 @@
         .sentence {
             display: flex;
             margin-bottom: 15px;
+            align-items: flex-start;
         }
         .sentence-number {
             display: flex;
@@ -153,7 +221,7 @@
         }
         .sentence-buttons {
             display: flex;
-            gap: 2px;
+            gap: 4px;
             margin-top: 2px;
         }
         .answer-btn, .copy-btn {
@@ -177,6 +245,49 @@
         }
         .sentence-content {
             flex-grow: 1;
+        }
+        .sentence-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-left: 10px;
+            flex-shrink: 0;
+        }
+        .speak-btn {
+            width: 24px;
+            height: 24px;
+            border: none;
+            background-color: #ff9800;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: white;
+            border-radius: 6px;
+            padding: 0;
+            transition: background-color 0.2s;
+        }
+        .speak-btn:hover {
+            background-color: #fb8c00;
+        }
+        .speak-btn[aria-pressed="true"] {
+            background-color: #ef6c00;
+        }
+        .speak-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .loop-info {
+            display: flex;
+            align-items: center;
+            font-size: 12px;
+            color: #5f5f5f;
+            gap: 4px;
+        }
+        .loop-count-value {
+            font-weight: 600;
+            color: #333;
         }
         .check-box {
             width: 20px;
@@ -337,7 +448,7 @@
             font-size: 12px;
             color: #666;
         }
-        
+
         .saved-item-preview {
             font-size: 13px;
             color: #888;
@@ -349,7 +460,21 @@
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
         }
-        
+
+        .saved-item-meta {
+            font-size: 12px;
+            color: #555;
+            margin-top: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .saved-item-meta span {
+            font-weight: 600;
+            color: #0071e3;
+        }
+
         .saved-item-actions {
             display: flex;
             gap: 5px;
@@ -420,10 +545,30 @@
                 align-items: stretch;
             }
             
-            .controls > div {
+            .controls-slider {
+                margin-left: 0;
                 display: flex;
                 flex-direction: column;
                 gap: 8px;
+                width: 100%;
+            }
+            
+            .percentage-buttons {
+                justify-content: space-between;
+            }
+            
+            .percentage-btn {
+                flex: 1 1 calc(50% - 6px);
+                text-align: center;
+            }
+            
+            .completion-tracker {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .completion-controls {
+                width: 100%;
             }
             
             button {
@@ -453,6 +598,10 @@
                 width: 20px;
                 height: 20px;
                 font-size: 10px;
+            }
+            
+            .sentence-actions {
+                gap: 8px;
             }
             
             .check-box {
@@ -521,6 +670,10 @@
                 font-size: 15px;
                 font-weight: 500;
             }
+            
+            .sentence-actions {
+                gap: 6px;
+            }
         }
     </style>
 </head>
@@ -551,10 +704,26 @@
             <div id="quiz-area" class="quiz-area"></div>
             <div class="controls">
                 <button id="generate-quiz">Generate Quiz</button>
+                <button id="play-all">Play All</button>
                 <button id="download-quiz">Download Quiz</button>
-                <div>
+                <div class="controls-slider">
+                    <div class="percentage-buttons">
+                        <button type="button" class="percentage-btn" data-value="0">0%</button>
+                        <button type="button" class="percentage-btn" data-value="25">25%</button>
+                        <button type="button" class="percentage-btn" data-value="50">50%</button>
+                        <button type="button" class="percentage-btn" data-value="75">75%</button>
+                        <button type="button" class="percentage-btn" data-value="100">100%</button>
+                    </div>
                     <label for="hide-percentage">Hide percentage: <span id="percentage-value">20</span>%</label>
                     <input type="range" id="hide-percentage" min="0" max="100" value="20">
+                </div>
+            </div>
+            <div class="completion-tracker">
+                <span class="completion-label">Completion Count</span>
+                <div class="completion-controls">
+                    <button type="button" id="completion-decrement" class="completion-btn" aria-label="Decrease completion count">-</button>
+                    <span id="completion-count" class="completion-value">0</span>
+                    <button type="button" id="completion-increment" class="completion-btn" aria-label="Increase completion count">+</button>
                 </div>
             </div>
         </div>
@@ -595,6 +764,7 @@
         const quizArea = document.getElementById('quiz-area');
         const generateQuizBtn = document.getElementById('generate-quiz');
         const downloadQuizBtn = document.getElementById('download-quiz');
+        const playAllBtn = document.getElementById('play-all');
         const hidePercentage = document.getElementById('hide-percentage');
         const percentageValue = document.getElementById('percentage-value');
         const progressDiv = document.getElementById('progress');
@@ -610,13 +780,52 @@
         const exportAllBtn = document.getElementById('export-all-btn');
         const importBtn = document.getElementById('import-btn');
         const importFileInput = document.getElementById('import-file-input');
+        const percentageButtons = document.querySelectorAll('.percentage-btn');
+        const completionDecrementBtn = document.getElementById('completion-decrement');
+        const completionIncrementBtn = document.getElementById('completion-increment');
+        const completionCountDisplay = document.getElementById('completion-count');
+        
+        const speechState = {
+            currentIndex: null,
+            currentButton: null,
+            sentence: '',
+            isLooping: false,
+            utterance: null,
+            loopTimeoutId: null
+        };
+        const speechSupported = 'speechSynthesis' in window && typeof SpeechSynthesisUtterance !== 'undefined';
         
         let currentMode = 'speaking'; // 'speaking' or 'writing'
         const STORAGE_KEY = 'memoryQuiz_savedQuizzes';
+        const LOOP_COUNT_STORAGE_KEY = 'memoryQuiz_loopCounts_v1';
+        let loopCountsMap = loadLoopCounts();
+        let completionCount = 0;
+        let currentLoadedQuizId = null;
+        
+        const globalPlaybackState = {
+            isPlaying: false,
+            currentIndex: 0,
+            timeoutId: null,
+            utterance: null,
+            currentButton: null
+        };
 
         generateQuizBtn.addEventListener('click', generateQuiz);
         downloadQuizBtn.addEventListener('click', downloadQuiz);
+        playAllBtn.addEventListener('click', toggleGlobalPlayback);
         hidePercentage.addEventListener('input', updatePercentage);
+        percentageButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const value = parseInt(btn.dataset.value, 10);
+                if (Number.isNaN(value)) {
+                    return;
+                }
+                hidePercentage.value = value;
+                updatePercentage();
+            });
+        });
+        completionDecrementBtn.addEventListener('click', () => changeCompletionCount(-1));
+        completionIncrementBtn.addEventListener('click', () => changeCompletionCount(1));
         speakingModeBtn.addEventListener('click', () => switchMode('speaking'));
         writingModeBtn.addEventListener('click', () => switchMode('writing'));
         manageSavesBtn.addEventListener('click', openSaveModal);
@@ -634,8 +843,14 @@
         });
         
         // Auto-save current text
-        inputText.addEventListener('input', autoSave);
-        quizTitle.addEventListener('input', autoSave);
+        inputText.addEventListener('input', () => {
+            currentLoadedQuizId = null;
+            autoSave();
+        });
+        quizTitle.addEventListener('input', () => {
+            currentLoadedQuizId = null;
+            autoSave();
+        });
         
         // Load auto-saved text on startup
         loadAutoSave();
@@ -659,32 +874,118 @@
         }
 
         function updatePercentage() {
-            percentageValue.textContent = hidePercentage.value;
+            const value = parseInt(hidePercentage.value, 10);
+            percentageValue.textContent = value;
+            setActivePercentageButton(value);
+            autoSave();
+        }
+        
+        function setActivePercentageButton(value) {
+            percentageButtons.forEach(btn => {
+                const btnValue = parseInt(btn.dataset.value, 10);
+                if (btnValue === value) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+        
+        function setCompletionCount(value, options = {}) {
+            const normalized = Math.max(0, Number.isFinite(Number(value)) ? Math.floor(Number(value)) : 0);
+            completionCount = normalized;
+            updateCompletionDisplay();
+            if (!options.skipAutoSave) {
+                autoSave();
+            }
+            if (!options.skipSync) {
+                syncCompletionCountToSavedQuiz();
+            }
+        }
+        
+        function changeCompletionCount(delta) {
+            const target = Math.max(0, completionCount + delta);
+            if (target === completionCount) {
+                return;
+            }
+            setCompletionCount(target);
+        }
+        
+        function updateCompletionDisplay() {
+            if (completionCountDisplay) {
+                completionCountDisplay.textContent = completionCount;
+            }
+        }
+        
+        function syncCompletionCountToSavedQuiz() {
+            if (currentLoadedQuizId === null) {
+                return;
+            }
+            const quizzes = getSavedQuizzes();
+            const index = quizzes.findIndex(q => q.id === currentLoadedQuizId);
+            if (index === -1) {
+                return;
+            }
+            if (quizzes[index].completionCount === completionCount) {
+                return;
+            }
+            quizzes[index].completionCount = completionCount;
+            saveQuizzes(quizzes);
+            renderSavedList();
         }
         
         // Auto-save functions
         function autoSave() {
+            if (typeof localStorage === 'undefined') {
+                return;
+            }
             localStorage.setItem('memoryQuiz_autoSave', JSON.stringify({
                 text: inputText.value,
                 title: quizTitle.value,
-                percentage: hidePercentage.value
+                percentage: hidePercentage.value,
+                completionCount: completionCount,
+                loadedQuizId: currentLoadedQuizId
             }));
         }
         
         function loadAutoSave() {
             const saved = localStorage.getItem('memoryQuiz_autoSave');
+            let completionLoaded = false;
             if (saved) {
                 try {
                     const data = JSON.parse(saved);
                     inputText.value = data.text || '';
                     quizTitle.value = data.title || '';
-                    if (data.percentage) {
+                    if (data && Object.prototype.hasOwnProperty.call(data, 'percentage')) {
                         hidePercentage.value = data.percentage;
-                        percentageValue.textContent = data.percentage;
+                    }
+                    if (data && Object.prototype.hasOwnProperty.call(data, 'completionCount')) {
+                        setCompletionCount(data.completionCount, { skipAutoSave: true, skipSync: true });
+                        completionLoaded = true;
+                    }
+                    if (data && Object.prototype.hasOwnProperty.call(data, 'loadedQuizId')) {
+                        currentLoadedQuizId = data.loadedQuizId;
+                    } else {
+                        currentLoadedQuizId = null;
                     }
                 } catch (e) {
                     console.error('Error loading auto-save:', e);
+                    currentLoadedQuizId = null;
                 }
+            } else {
+                currentLoadedQuizId = null;
+            }
+            if (currentLoadedQuizId !== null) {
+                const quizzes = getSavedQuizzes();
+                const exists = quizzes.some(q => q.id === currentLoadedQuizId);
+                if (!exists) {
+                    currentLoadedQuizId = null;
+                }
+            }
+            percentageValue.textContent = hidePercentage.value;
+            setActivePercentageButton(parseInt(hidePercentage.value, 10));
+            if (!completionLoaded) {
+                updateCompletionDisplay();
             }
         }
         
@@ -723,13 +1024,16 @@
                 text: text,
                 percentage: hidePercentage.value,
                 mode: currentMode,
+                completionCount: completionCount,
                 date: new Date().toISOString(),
                 dateString: new Date().toLocaleString()
             };
-            
+
             quizzes.unshift(newQuiz);
             saveQuizzes(quizzes);
             renderSavedList();
+            currentLoadedQuizId = newQuiz.id;
+            autoSave();
             showToast('Quiz saved! 💾');
         }
         
@@ -738,15 +1042,21 @@
             const quiz = quizzes.find(q => q.id === id);
             
             if (quiz) {
-                inputText.value = quiz.text;
-                quizTitle.value = quiz.title;
-                hidePercentage.value = quiz.percentage || 20;
-                percentageValue.textContent = quiz.percentage || 20;
+                inputText.value = quiz.text || '';
+                quizTitle.value = quiz.title || '';
+                const storedPercentage = Object.prototype.hasOwnProperty.call(quiz, 'percentage') ? quiz.percentage : 20;
+                hidePercentage.value = storedPercentage;
+                percentageValue.textContent = storedPercentage;
+                setActivePercentageButton(parseInt(storedPercentage, 10));
                 
+                const storedCompletion = Object.prototype.hasOwnProperty.call(quiz, 'completionCount') ? quiz.completionCount : 0;
+                setCompletionCount(storedCompletion, { skipAutoSave: true, skipSync: true });
+                currentLoadedQuizId = quiz.id;
+
                 if (quiz.mode) {
                     switchMode(quiz.mode);
                 }
-                
+
                 closeSaveModal();
                 showToast('Quiz loaded! 📖');
                 autoSave();
@@ -762,6 +1072,10 @@
             quizzes = quizzes.filter(q => q.id !== id);
             saveQuizzes(quizzes);
             renderSavedList();
+            if (currentLoadedQuizId === id) {
+                currentLoadedQuizId = null;
+                autoSave();
+            }
             showToast('Quiz deleted! 🗑️');
         }
         
@@ -775,9 +1089,11 @@
             
             savedList.innerHTML = quizzes.map(quiz => {
                 // Create preview text (first 100 characters)
-                const previewText = quiz.text.length > 100 
-                    ? quiz.text.substring(0, 100) + '...' 
-                    : quiz.text;
+                const previewSource = (quiz.text || '').trim();
+                const previewText = previewSource.length > 100 
+                    ? previewSource.substring(0, 100) + '...' 
+                    : previewSource;
+                const completionTotal = Math.max(0, parseInt(quiz.completionCount, 10) || 0);
                 
                 return `
                     <div class="saved-item">
@@ -785,6 +1101,7 @@
                             <div class="saved-item-title">${escapeHtml(quiz.title)}</div>
                             <div class="saved-item-date">📅 ${quiz.dateString}</div>
                             <div class="saved-item-preview">${escapeHtml(previewText)}</div>
+                            <div class="saved-item-meta">✅ Completion Count: <span>${completionTotal}</span></div>
                         </div>
                         <div class="saved-item-actions">
                             <button class="saved-item-btn load-btn" onclick="loadQuiz(${quiz.id})">Load</button>
@@ -870,7 +1187,15 @@
                         newQuizzes = importData.quizzes;
                         showToast(`Imported ${importCount} quizzes! 📥`);
                     }
-                    
+
+                    newQuizzes = newQuizzes.map(quiz => {
+                        const completionTotal = Math.max(0, parseInt(quiz.completionCount, 10) || 0);
+                        return {
+                            ...quiz,
+                            completionCount: completionTotal
+                        };
+                    });
+
                     saveQuizzes(newQuizzes);
                     renderSavedList();
                     
@@ -890,10 +1215,73 @@
         window.loadQuiz = loadQuiz;
         window.deleteQuiz = deleteQuiz;
 
+        function normalizeSentence(sentence) {
+            return (sentence || '').replace(/\s+/g, ' ').trim();
+        }
+
+        function buildLoopKey(sentence, index) {
+            return `${normalizeSentence(sentence)}||${index}`;
+        }
+
+        function decodeLoopKey(encoded) {
+            try {
+                return decodeURIComponent(encoded);
+            } catch (error) {
+                return encoded;
+            }
+        }
+
+        function loadLoopCounts() {
+            if (typeof localStorage === 'undefined') {
+                return new Map();
+            }
+            try {
+                const raw = localStorage.getItem(LOOP_COUNT_STORAGE_KEY);
+                if (!raw) {
+                    return new Map();
+                }
+                const parsed = JSON.parse(raw);
+                if (!parsed || typeof parsed !== 'object') {
+                    return new Map();
+                }
+                const entries = Object.entries(parsed).map(([key, value]) => [key, Number(value) || 0]);
+                return new Map(entries);
+            } catch (error) {
+                console.error('Failed to load loop counts:', error);
+                return new Map();
+            }
+        }
+
+        function saveLoopCounts() {
+            if (typeof localStorage === 'undefined') {
+                return;
+            }
+            try {
+                const data = {};
+                loopCountsMap.forEach((value, key) => {
+                    data[key] = value;
+                });
+                localStorage.setItem(LOOP_COUNT_STORAGE_KEY, JSON.stringify(data));
+            } catch (error) {
+                console.error('Failed to save loop counts:', error);
+            }
+        }
+
+        function getLoopCount(loopKey) {
+            return loopCountsMap.get(loopKey) || 0;
+        }
+
+        function setLoopCount(loopKey, value) {
+            loopCountsMap.set(loopKey, value);
+            saveLoopCounts();
+        }
+
         function generateQuiz() {
             const text = inputText.value;
             const sentences = text.split(/(?<=[.!?])\s+/);
-            const percentToHide = parseInt(hidePercentage.value) / 100;
+            const percentToHide = parseInt(hidePercentage.value, 10) / 100;
+            
+            stopAllPlayback();
             
             // Save currently completed sentence indices
             const completedIndices = new Set();
@@ -905,6 +1293,10 @@
             
             const quizHtml = sentences.map((sentence, index) => {
                 const words = sentence.split(/\s+/);
+                const baseSentence = sentence.trim();
+                const loopKey = buildLoopKey(baseSentence, index);
+                const encodedLoopKey = encodeURIComponent(loopKey);
+                const storedLoopCount = getLoopCount(loopKey);
                 
                 // Filter only English words (words containing at least one Latin letter)
                 const englishWordIndices = [];
@@ -917,7 +1309,7 @@
                 // Calculate how many English words to hide
                 const numWordsToHide = Math.floor(englishWordIndices.length * percentToHide);
 
-                let hiddenIndices = new Set();
+                const hiddenIndices = new Set();
                 while (hiddenIndices.size < numWordsToHide && englishWordIndices.length > 0) {
                     const randomIndex = englishWordIndices[Math.floor(Math.random() * englishWordIndices.length)];
                     hiddenIndices.add(randomIndex);
@@ -927,18 +1319,17 @@
                     if (hiddenIndices.has(wordIndex)) {
                         if (currentMode === 'writing') {
                             return `<input type="text" class="hidden-word-input" data-word="${word}" placeholder="${'_'.repeat(word.length)}" style="width: ${word.length * 12 + 20}px;">`;
-                        } else {
-                            return `<span class="hidden-word" data-word="${word}">${'_'.repeat(word.length)}</span>`;
                         }
+                        return `<span class="hidden-word" data-word="${word}">${'_'.repeat(word.length)}</span>`;
                     }
                     return word;
                 }).join(' ');
 
-                const lastChar = sentence.trim().slice(-1);
+                const lastChar = baseSentence.slice(-1);
                 const processedSentence = processedWords + (lastChar === '.' || lastChar === '!' || lastChar === '?' ? lastChar : '');
 
                 return `
-                    <div class="sentence">
+                    <div class="sentence" data-index="${index}">
                         <div class="sentence-number">
                             <span class="number">${index + 1}.</span>
                             <div class="sentence-buttons">
@@ -947,7 +1338,11 @@
                             </div>
                         </div>
                         <span class="sentence-content">${processedSentence}</span>
-                        <span class="check-box" title="Mark as completed"></span>
+                        <div class="sentence-actions" data-index="${index}" data-loop-key="${encodedLoopKey}">
+                            <button class="speak-btn" title="Play sentence" data-index="${index}" data-loop-key="${encodedLoopKey}" data-sentence="${encodeURIComponent(baseSentence)}">▶</button>
+                            <div class="loop-info" data-index="${index}" data-loop-key="${encodedLoopKey}">Loops: <span class="loop-count-value">${storedLoopCount}</span></div>
+                            <span class="check-box" title="Mark as completed"></span>
+                        </div>
                     </div>`;
             }).join('');
 
@@ -973,6 +1368,8 @@
                 word.addEventListener('click', toggleWord);
             });
             
+            initializeSpeechControls();
+            
             // Writing mode: Add input event listeners
             document.querySelectorAll('.hidden-word-input').forEach(input => {
                 input.addEventListener('input', handleWritingInput);
@@ -992,6 +1389,339 @@
             });
 
             updateProgress();
+        }
+
+        function initializeSpeechControls() {
+            document.querySelectorAll('.loop-info').forEach(info => {
+                const loopKey = decodeLoopKey(info.dataset.loopKey || '');
+                const valueEl = info.querySelector('.loop-count-value');
+                if (valueEl) {
+                    valueEl.textContent = getLoopCount(loopKey);
+                }
+            });
+
+            document.querySelectorAll('.speak-btn').forEach(btn => {
+                updateSpeakButton(btn, false);
+                if (!speechSupported) {
+                    btn.disabled = true;
+                    btn.title = 'Speech playback is not supported in this browser';
+                    return;
+                }
+                btn.disabled = false;
+                btn.addEventListener('click', handleSpeakToggle);
+            });
+
+            if (playAllBtn) {
+                if (!speechSupported) {
+                    playAllBtn.disabled = true;
+                    playAllBtn.title = 'Speech playback is not supported in this browser';
+                } else {
+                    playAllBtn.disabled = false;
+                    playAllBtn.title = 'Play all sentences on repeat';
+                }
+                updatePlayAllButton(globalPlaybackState.isPlaying);
+            }
+        }
+
+        function handleSpeakToggle(event) {
+            if (!speechSupported) {
+                showToast('Speech playback is not supported in this browser.');
+                return;
+            }
+
+            const button = event.currentTarget;
+            const index = parseInt(button.dataset.index, 10);
+            let sentenceText = '';
+
+            try {
+                sentenceText = decodeURIComponent(button.dataset.sentence || '');
+            } catch (error) {
+                sentenceText = button.dataset.sentence || '';
+            }
+
+            sentenceText = sentenceText.trim();
+
+            if (!sentenceText) {
+                showToast('Nothing to read for this sentence.');
+                return;
+            }
+
+            if (speechState.isLooping && speechState.currentIndex === index) {
+                stopSingleLoopPlayback();
+                return;
+            }
+
+            stopGlobalPlayback();
+            stopSingleLoopPlayback();
+
+            speechState.currentIndex = index;
+            speechState.currentButton = button;
+            speechState.sentence = sentenceText;
+            speechState.isLooping = true;
+
+            updateSpeakButton(button, true);
+            queueSpeech();
+        }
+
+        function queueSpeech() {
+            if (!speechSupported || !speechState.isLooping || !speechState.sentence) {
+                return;
+            }
+
+            if (speechState.loopTimeoutId) {
+                clearTimeout(speechState.loopTimeoutId);
+                speechState.loopTimeoutId = null;
+            }
+
+            const utterance = new SpeechSynthesisUtterance(speechState.sentence);
+            speechState.utterance = utterance;
+
+            utterance.onend = () => {
+                speechState.utterance = null;
+                if (!speechState.isLooping || speechState.currentIndex === null) {
+                    return;
+                }
+                incrementLoopCount(speechState.currentIndex);
+                speechState.loopTimeoutId = setTimeout(() => {
+                    if (speechState.isLooping) {
+                        queueSpeech();
+                    }
+                }, 1000);
+            };
+
+            utterance.onerror = (error) => {
+                speechState.utterance = null;
+                if (isBenignSpeechError(error)) {
+                    return;
+                }
+                console.error('Speech synthesis error:', error);
+                showToast('Speech playback error.');
+                stopSingleLoopPlayback({ skipCancel: true });
+            };
+
+            try {
+                speechSynthesis.speak(utterance);
+            } catch (error) {
+                console.error('Speech synthesis speak error:', error);
+                showToast('Unable to start speech playback.');
+                stopSingleLoopPlayback({ skipCancel: true });
+            }
+        }
+
+        function incrementLoopCount(index) {
+            const loopInfo = document.querySelector(`.loop-info[data-index="${index}"]`);
+            if (!loopInfo) {
+                return;
+            }
+            const loopKey = decodeLoopKey(loopInfo.dataset.loopKey || '');
+            const nextValue = getLoopCount(loopKey) + 1;
+            setLoopCount(loopKey, nextValue);
+            updateLoopDisplay(index, nextValue);
+        }
+
+        function updateLoopDisplay(index, value) {
+            const target = document.querySelector(`.loop-info[data-index="${index}"] .loop-count-value`);
+            if (target) {
+                target.textContent = value;
+            }
+        }
+
+        function updateSpeakButton(button, isPlaying) {
+            if (!button) return;
+            button.textContent = isPlaying ? '⏸' : '▶';
+            button.setAttribute('aria-pressed', isPlaying ? 'true' : 'false');
+            button.title = isPlaying ? 'Pause speech playback' : 'Play sentence';
+        }
+
+        function stopSingleLoopPlayback(options = {}) {
+            const { skipCancel = false } = options;
+
+            if (speechState.loopTimeoutId) {
+                clearTimeout(speechState.loopTimeoutId);
+                speechState.loopTimeoutId = null;
+            }
+
+            if (speechState.currentButton) {
+                updateSpeakButton(speechState.currentButton, false);
+            }
+
+            speechState.isLooping = false;
+
+            if (!skipCancel) {
+                cancelActiveSpeech();
+            }
+
+            speechState.currentIndex = null;
+            speechState.currentButton = null;
+            speechState.sentence = '';
+            speechState.utterance = null;
+        }
+
+        function cancelActiveSpeech() {
+            if (!speechSupported) {
+                return;
+            }
+            try {
+                if (speechSynthesis.speaking || speechSynthesis.pending) {
+                    speechSynthesis.cancel();
+                }
+            } catch (error) {
+                console.error('Speech synthesis cancel error:', error);
+            }
+        }
+
+        function stopAllPlayback() {
+            stopGlobalPlayback({ skipCancel: true });
+            stopSingleLoopPlayback({ skipCancel: true });
+            cancelActiveSpeech();
+        }
+
+        function updatePlayAllButton(isPlaying) {
+            if (!playAllBtn) {
+                return;
+            }
+            playAllBtn.textContent = isPlaying ? 'Stop All' : 'Play All';
+            playAllBtn.setAttribute('aria-pressed', isPlaying ? 'true' : 'false');
+        }
+
+        function toggleGlobalPlayback() {
+            if (!speechSupported) {
+                showToast('Speech playback is not supported in this browser.');
+                return;
+            }
+
+            if (globalPlaybackState.isPlaying) {
+                stopGlobalPlayback();
+            } else {
+                startGlobalPlayback();
+            }
+        }
+
+        function startGlobalPlayback() {
+            const speakButtons = Array.from(document.querySelectorAll('.speak-btn'));
+            if (speakButtons.length === 0) {
+                showToast('Generate a quiz first!');
+                return;
+            }
+
+            stopSingleLoopPlayback();
+
+            globalPlaybackState.isPlaying = true;
+            globalPlaybackState.currentIndex = 0;
+            globalPlaybackState.currentButton = null;
+            updatePlayAllButton(true);
+
+            playNextInGlobal();
+        }
+
+        function playNextInGlobal() {
+            if (!globalPlaybackState.isPlaying) {
+                return;
+            }
+
+            if (globalPlaybackState.timeoutId) {
+                clearTimeout(globalPlaybackState.timeoutId);
+                globalPlaybackState.timeoutId = null;
+            }
+
+            const speakButtons = Array.from(document.querySelectorAll('.speak-btn'));
+            if (speakButtons.length === 0) {
+                stopGlobalPlayback();
+                return;
+            }
+
+            if (globalPlaybackState.currentIndex >= speakButtons.length) {
+                globalPlaybackState.currentIndex = 0;
+            }
+
+            const button = speakButtons[globalPlaybackState.currentIndex];
+            let sentenceText = '';
+            try {
+                sentenceText = decodeURIComponent(button.dataset.sentence || '');
+            } catch (error) {
+                sentenceText = button.dataset.sentence || '';
+            }
+            sentenceText = sentenceText.trim();
+
+            if (!sentenceText) {
+                globalPlaybackState.currentIndex = (globalPlaybackState.currentIndex + 1) % speakButtons.length;
+                globalPlaybackState.timeoutId = setTimeout(() => playNextInGlobal(), 1000);
+                return;
+            }
+
+            if (globalPlaybackState.currentButton && globalPlaybackState.currentButton !== button) {
+                updateSpeakButton(globalPlaybackState.currentButton, false);
+            }
+            globalPlaybackState.currentButton = button;
+            updateSpeakButton(button, true);
+
+            const index = parseInt(button.dataset.index, 10);
+            const utterance = new SpeechSynthesisUtterance(sentenceText);
+            globalPlaybackState.utterance = utterance;
+
+            utterance.onend = () => {
+                updateSpeakButton(button, false);
+                globalPlaybackState.utterance = null;
+                if (!globalPlaybackState.isPlaying) {
+                    return;
+                }
+                incrementLoopCount(index);
+                globalPlaybackState.currentIndex = (globalPlaybackState.currentIndex + 1) % speakButtons.length;
+                globalPlaybackState.timeoutId = setTimeout(() => playNextInGlobal(), 1000);
+            };
+
+            utterance.onerror = (error) => {
+                updateSpeakButton(button, false);
+                globalPlaybackState.utterance = null;
+                if (isBenignSpeechError(error)) {
+                    if (globalPlaybackState.isPlaying) {
+                        globalPlaybackState.timeoutId = setTimeout(() => playNextInGlobal(), 1000);
+                    }
+                    return;
+                }
+                console.error('Speech synthesis error:', error);
+                showToast('Speech playback error.');
+                stopGlobalPlayback({ skipCancel: true });
+            };
+
+            try {
+                speechSynthesis.speak(utterance);
+            } catch (error) {
+                console.error('Speech synthesis speak error:', error);
+                showToast('Unable to start speech playback.');
+                stopGlobalPlayback({ skipCancel: true });
+            }
+        }
+
+        function stopGlobalPlayback(options = {}) {
+            const { skipCancel = false } = options;
+
+            if (globalPlaybackState.timeoutId) {
+                clearTimeout(globalPlaybackState.timeoutId);
+                globalPlaybackState.timeoutId = null;
+            }
+
+            if (globalPlaybackState.currentButton) {
+                updateSpeakButton(globalPlaybackState.currentButton, false);
+            }
+
+            globalPlaybackState.isPlaying = false;
+            globalPlaybackState.currentIndex = 0;
+            globalPlaybackState.currentButton = null;
+            globalPlaybackState.utterance = null;
+
+            updatePlayAllButton(false);
+
+            if (!skipCancel) {
+                cancelActiveSpeech();
+            }
+        }
+
+        function isBenignSpeechError(event) {
+            if (!event) {
+                return false;
+            }
+            return event.error === 'interrupted' || event.error === 'canceled';
         }
         
         function handleWritingInput(event) {
