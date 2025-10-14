@@ -177,6 +177,38 @@
             font-weight: 600;
             color: #0071e3;
         }
+        .voice-settings {
+            margin-top: 16px;
+            padding: 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            background-color: #f9f9ff;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .voice-settings label {
+            font-weight: 600;
+            color: #1d1d1f;
+        }
+        .voice-select-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        #voice-select {
+            flex: 1 1 240px;
+            padding: 8px;
+            border: 1px solid #d0d0d0;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        .voice-status {
+            font-size: 13px;
+            color: #5f5f5f;
+        }
         .percentage-buttons {
             display: flex;
             flex-wrap: wrap;
@@ -571,6 +603,15 @@
                 width: 100%;
             }
             
+            .voice-settings {
+                width: 100%;
+            }
+            
+            .voice-select-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
             button {
                 width: 100%;
                 padding: 12px 15px;
@@ -719,12 +760,22 @@
                 </div>
             </div>
             <div class="completion-tracker">
-                <span class="completion-label">Completion Count</span>
+                <span class="completion-label">완료 횟수</span>
                 <div class="completion-controls">
                     <button type="button" id="completion-decrement" class="completion-btn" aria-label="Decrease completion count">-</button>
                     <span id="completion-count" class="completion-value">0</span>
                     <button type="button" id="completion-increment" class="completion-btn" aria-label="Increase completion count">+</button>
                 </div>
+            </div>
+            <div class="voice-settings">
+                <label for="voice-select">음성 선택</label>
+                <div class="voice-select-row">
+                    <select id="voice-select">
+                        <option value="">영어 음성을 불러오는 중...</option>
+                    </select>
+                    <button type="button" id="voice-refresh">새로고침</button>
+                </div>
+                <div id="voice-status" class="voice-status">영어 음성을 탐색하고 있어요.</div>
             </div>
         </div>
     </div>
@@ -784,6 +835,9 @@
         const completionDecrementBtn = document.getElementById('completion-decrement');
         const completionIncrementBtn = document.getElementById('completion-increment');
         const completionCountDisplay = document.getElementById('completion-count');
+        const voiceSelect = document.getElementById('voice-select');
+        const voiceRefreshBtn = document.getElementById('voice-refresh');
+        const voiceStatus = document.getElementById('voice-status');
         
         const speechState = {
             currentIndex: null,
@@ -796,13 +850,18 @@
         const speechSupported = 'speechSynthesis' in window && typeof SpeechSynthesisUtterance !== 'undefined';
         let preferredVoice = null;
         
+        const BACKUP_VERSION = '1.1';
+        const VOICE_PREFERENCE_KEY = 'memoryQuiz_voicePreference';
+
         let currentMode = 'speaking'; // 'speaking' or 'writing'
         const STORAGE_KEY = 'memoryQuiz_savedQuizzes';
         const LOOP_COUNT_STORAGE_KEY = 'memoryQuiz_loopCounts_v1';
         let loopCountsMap = loadLoopCounts();
         let completionCount = 0;
         let currentLoadedQuizId = null;
-        
+        let availableVoices = [];
+        let selectedVoiceId = loadStoredVoicePreference();
+
         const globalPlaybackState = {
             isPlaying: false,
             currentIndex: 0,
@@ -813,8 +872,18 @@
 
         if (speechSupported) {
             initializePreferredVoice();
+        } else {
+            if (voiceSelect) {
+                voiceSelect.innerHTML = '<option value=\"\">이 브라우저는 음성 합성을 지원하지 않아요</option>';
+                voiceSelect.disabled = true;
+            }
+            if (voiceRefreshBtn) {
+                voiceRefreshBtn.disabled = true;
+            }
+            if (voiceStatus) {
+                voiceStatus.textContent = '이 브라우저는 음성 합성을 지원하지 않아요.';
+            }
         }
-
         generateQuizBtn.addEventListener('click', generateQuiz);
         downloadQuizBtn.addEventListener('click', downloadQuiz);
         playAllBtn.addEventListener('click', toggleGlobalPlayback);
@@ -839,6 +908,12 @@
         exportAllBtn.addEventListener('click', exportAllQuizzes);
         importBtn.addEventListener('click', () => importFileInput.click());
         importFileInput.addEventListener('change', importQuizzes);
+        if (voiceSelect) {
+            voiceSelect.addEventListener('change', handleVoiceSelectionChange);
+        }
+        if (voiceRefreshBtn) {
+            voiceRefreshBtn.addEventListener('click', () => refreshAvailableVoices({ force: true, announce: true }));
+        }
         
         // Close modal when clicking outside
         window.addEventListener('click', (e) => {
@@ -860,63 +935,252 @@
         // Load auto-saved text on startup
         loadAutoSave();
 
-        function initializePreferredVoice() {
-            const assignPreferredVoice = () => {
-                try {
-                    const voices = speechSynthesis.getVoices();
-                    if (!voices || voices.length === 0) {
-                        return;
-                    }
-                    const selected = pickEnglishVoice(voices);
-                    if (selected) {
-                        preferredVoice = selected;
-                    } else if (!preferredVoice) {
-                        preferredVoice = voices[0];
-                    }
-                } catch (error) {
-                    console.error('Voice selection error:', error);
-                }
-            };
-
-            assignPreferredVoice();
-            if (typeof speechSynthesis.addEventListener === 'function') {
-                speechSynthesis.addEventListener('voiceschanged', assignPreferredVoice);
-            } else if (typeof speechSynthesis.onvoiceschanged !== 'undefined') {
-                speechSynthesis.onvoiceschanged = assignPreferredVoice;
+        function loadStoredVoicePreference() {
+            if (typeof localStorage === 'undefined') {
+                return null;
             }
+            try {
+                const stored = localStorage.getItem(VOICE_PREFERENCE_KEY);
+                return stored || null;
+            } catch (error) {
+                console.error('Failed to load voice preference:', error);
+                return null;
+            }
+        }
+
+        function storeVoicePreference(voiceId) {
+            if (typeof localStorage === 'undefined') {
+                return;
+            }
+            try {
+                if (voiceId) {
+                    localStorage.setItem(VOICE_PREFERENCE_KEY, voiceId);
+                } else {
+                    localStorage.removeItem(VOICE_PREFERENCE_KEY);
+                }
+            } catch (error) {
+                console.error('Failed to store voice preference:', error);
+            }
+        }
+
+        function getVoiceIdentifier(voice) {
+            if (!voice) {
+                return '';
+            }
+            if (voice.voiceURI) {
+                return voice.voiceURI;
+            }
+            return `${voice.name || 'unknown'}__${voice.lang || 'unknown'}`;
+        }
+
+        function findVoiceById(id) {
+            if (!id) {
+                return null;
+            }
+            return availableVoices.find(voice => getVoiceIdentifier(voice) === id) || null;
+        }
+
+        function isEnglishVoice(voice) {
+            if (!voice) {
+                return false;
+            }
+            const lang = (voice.lang || '').toLowerCase();
+            if (lang.startsWith('en')) {
+                return true;
+            }
+            if (/english/i.test(voice.name || '')) {
+                return true;
+            }
+            return false;
         }
 
         function pickEnglishVoice(voices) {
             if (!voices || voices.length === 0) {
                 return null;
             }
+            const englishVoices = voices.filter(isEnglishVoice);
+            if (!englishVoices.length) {
+                return null;
+            }
             const lowerCaseMatch = (voice, target) =>
                 voice.lang && voice.lang.toLowerCase() === target;
-            const startsWithEn = voice =>
-                voice.lang && voice.lang.toLowerCase().startsWith('en');
-            
-            return voices.find(voice => lowerCaseMatch(voice, 'en-us')) ||
-                voices.find(voice => lowerCaseMatch(voice, 'en-gb')) ||
-                voices.find(startsWithEn) ||
-                voices.find(voice => /english/i.test(voice.name)) ||
+            return englishVoices.find(voice => lowerCaseMatch(voice, 'en-us')) ||
+                englishVoices.find(voice => lowerCaseMatch(voice, 'en-gb')) ||
+                englishVoices[0] ||
                 null;
+        }
+
+        function refreshAvailableVoices({ force = false, announce = false } = {}) {
+            if (!speechSupported) {
+                updateVoiceStatus();
+                return;
+            }
+
+            let voices = [];
+            try {
+                voices = speechSynthesis.getVoices() || [];
+            } catch (error) {
+                console.error('Failed to load voices:', error);
+            }
+
+            if (!voices.length) {
+                availableVoices = [];
+                preferredVoice = null;
+                if (voiceSelect) {
+                    voiceSelect.innerHTML = '';
+                    const option = document.createElement('option');
+                    option.value = '';
+                    option.textContent = '영어 음성을 찾을 수 없어요';
+                    voiceSelect.appendChild(option);
+                    voiceSelect.disabled = true;
+                }
+                if (voiceRefreshBtn) {
+                    voiceRefreshBtn.disabled = false;
+                }
+                updateVoiceStatus({ announce: false });
+                return;
+            }
+
+            voices = voices.slice().sort((a, b) => {
+                const langA = (a.lang || '').toLowerCase();
+                const langB = (b.lang || '').toLowerCase();
+                if (langA === langB) {
+                    return (a.name || '').localeCompare(b.name || '');
+                }
+                return langA.localeCompare(langB);
+            });
+
+            const englishVoices = voices.filter(isEnglishVoice);
+
+            if (!englishVoices.length) {
+                availableVoices = [];
+                preferredVoice = null;
+                if (voiceSelect) {
+                    voiceSelect.disabled = true;
+                    voiceSelect.innerHTML = '';
+                    const option = document.createElement('option');
+                    option.value = '';
+                    option.textContent = '영어 음성을 찾을 수 없어요';
+                    voiceSelect.appendChild(option);
+                }
+                if (voiceRefreshBtn) {
+                    voiceRefreshBtn.disabled = false;
+                }
+                updateVoiceStatus({ announce });
+                return;
+            }
+
+            availableVoices = englishVoices;
+            if (voiceRefreshBtn) {
+                voiceRefreshBtn.disabled = false;
+            }
+
+            if (voiceSelect) {
+                voiceSelect.disabled = false;
+                voiceSelect.innerHTML = '';
+
+                const autoOption = document.createElement('option');
+                autoOption.value = '';
+                autoOption.textContent = '자동 선택 (권장)';
+                voiceSelect.appendChild(autoOption);
+
+                englishVoices.forEach(voice => {
+                    const option = document.createElement('option');
+                    option.value = getVoiceIdentifier(voice);
+                    option.textContent = `${voice.name}${voice.lang ? ` (${voice.lang})` : ''}${voice.default ? ' ⭐' : ''}`;
+                    voiceSelect.appendChild(option);
+                });
+            }
+
+            let voiceToUse = null;
+            if (selectedVoiceId) {
+                voiceToUse = findVoiceById(selectedVoiceId);
+                if (!voiceToUse) {
+                    voiceToUse = pickEnglishVoice(englishVoices) || englishVoices[0] || null;
+                    selectedVoiceId = voiceToUse ? getVoiceIdentifier(voiceToUse) : null;
+                    storeVoicePreference(selectedVoiceId);
+                }
+            } else {
+                voiceToUse = pickEnglishVoice(englishVoices) || englishVoices[0] || null;
+            }
+
+            preferredVoice = voiceToUse;
+
+            if (voiceSelect) {
+                const valueToSet = selectedVoiceId || (preferredVoice ? getVoiceIdentifier(preferredVoice) : '');
+                voiceSelect.value = valueToSet || '';
+            }
+
+            updateVoiceStatus({ announce });
+        }
+
+        function handleVoiceSelectionChange() {
+            if (!speechSupported || !voiceSelect) {
+                return;
+            }
+            const value = voiceSelect.value;
+            if (value) {
+                selectedVoiceId = value;
+                storeVoicePreference(selectedVoiceId);
+            } else {
+                const hadSelection = !!selectedVoiceId;
+                selectedVoiceId = null;
+                storeVoicePreference(null);
+                if (hadSelection) {
+                    showToast('자동 음성 선택으로 변경했어요 🔄');
+                }
+            }
+            preferredVoice = ensurePreferredVoice();
+            updateVoiceStatus({ announce: true });
+        }
+
+        function updateVoiceStatus({ announce = false } = {}) {
+            if (!voiceStatus) {
+                return;
+            }
+            if (!speechSupported) {
+                voiceStatus.textContent = '이 브라우저는 음성 합성을 지원하지 않아요.';
+                return;
+            }
+            const voice = ensurePreferredVoice();
+            if (voice) {
+                const description = `${voice.name}${voice.lang ? ` (${voice.lang})` : ''}`;
+                if (selectedVoiceId) {
+                    voiceStatus.textContent = `현재 음성: ${description}`;
+                } else {
+                    voiceStatus.textContent = `현재 음성(자동): ${description}`;
+                }
+                if (announce) {
+                    showToast(selectedVoiceId ? `음성을 ${voice.name}으로 설정했어요 🎧` : `자동 선택된 음성: ${voice.name}`);
+                }
+            } else if (availableVoices.length === 0) {
+                voiceStatus.textContent = '이 기기에서 영어 음성을 찾을 수 없어요. 기본 음성을 사용합니다.';
+                if (announce) {
+                    showToast('영어 음성을 찾을 수 없어요 ❌');
+                }
+            } else {
+                voiceStatus.textContent = '음성을 선택해 주세요.';
+            }
         }
 
         function ensurePreferredVoice() {
             if (!speechSupported) {
                 return null;
             }
-            if (preferredVoice) {
+            if (selectedVoiceId) {
+                const voice = findVoiceById(selectedVoiceId);
+                if (voice) {
+                    preferredVoice = voice;
+                    return preferredVoice;
+                }
+            }
+            if (preferredVoice && availableVoices.includes(preferredVoice)) {
                 return preferredVoice;
             }
-            try {
-                const voices = speechSynthesis.getVoices();
-                if (voices && voices.length > 0) {
-                    preferredVoice = pickEnglishVoice(voices) || voices[0];
-                }
-            } catch (error) {
-                console.error('Unable to ensure preferred voice:', error);
+            if (!availableVoices.length) {
+                return null;
             }
+            preferredVoice = pickEnglishVoice(availableVoices) || availableVoices[0] || null;
             return preferredVoice;
         }
 
@@ -930,6 +1194,33 @@
                 utterance.lang = voice.lang || 'en-US';
             } else {
                 utterance.lang = 'en-US';
+            }
+        }
+
+        function initializePreferredVoice() {
+            if (!speechSupported) {
+                if (voiceSelect) {
+                    voiceSelect.innerHTML = '<option value=\"\">이 브라우저는 음성 합성을 지원하지 않아요</option>';
+                    voiceSelect.disabled = true;
+                }
+                if (voiceRefreshBtn) {
+                    voiceRefreshBtn.disabled = true;
+                }
+                if (voiceStatus) {
+                    voiceStatus.textContent = '이 브라우저는 음성 합성을 지원하지 않아요.';
+                }
+                return;
+            }
+
+            const assignPreferredVoice = () => {
+                refreshAvailableVoices({ force: true });
+            };
+
+            assignPreferredVoice();
+            if (typeof speechSynthesis.addEventListener === 'function') {
+                speechSynthesis.addEventListener('voiceschanged', assignPreferredVoice);
+            } else if (typeof speechSynthesis.onvoiceschanged !== 'undefined') {
+                speechSynthesis.onvoiceschanged = assignPreferredVoice;
             }
         }
 
@@ -968,7 +1259,7 @@
                 }
             });
         }
-        
+
         function setCompletionCount(value, options = {}) {
             const normalized = Math.max(0, Number.isFinite(Number(value)) ? Math.floor(Number(value)) : 0);
             completionCount = normalized;
@@ -1179,7 +1470,7 @@
                             <div class="saved-item-title">${escapeHtml(quiz.title)}</div>
                             <div class="saved-item-date">📅 ${quiz.dateString}</div>
                             <div class="saved-item-preview">${escapeHtml(previewText)}</div>
-                            <div class="saved-item-meta">✅ Completion Count: <span>${completionTotal}</span></div>
+                            <div class="saved-item-meta">✅ 완료: <span>${completionTotal}</span></div>
                         </div>
                         <div class="saved-item-actions">
                             <button class="saved-item-btn load-btn" onclick="loadQuiz(${quiz.id})">Load</button>
@@ -1195,22 +1486,33 @@
             div.textContent = text;
             return div.innerHTML;
         }
+
+        function createBackupPayload() {
+            const quizzes = getSavedQuizzes();
+            const loopCountsData = {};
+            loopCountsMap.forEach((value, key) => {
+                loopCountsData[key] = value;
+            });
+            return {
+                version: BACKUP_VERSION,
+                exportDate: new Date().toISOString(),
+                quizzes: quizzes,
+                autoSave: {
+                    text: inputText.value,
+                    title: quizTitle.value,
+                    percentage: hidePercentage.value,
+                    completionCount: completionCount,
+                    loadedQuizId: currentLoadedQuizId
+                },
+                loopCounts: loopCountsData,
+                voicePreference: selectedVoiceId
+            };
+        }
         
         // Export all quizzes to JSON file
         function exportAllQuizzes() {
-            const quizzes = getSavedQuizzes();
-            
-            if (quizzes.length === 0) {
-                showToast('No quizzes to export!');
-                return;
-            }
-            
-            const exportData = {
-                version: '1.0',
-                exportDate: new Date().toISOString(),
-                quizzes: quizzes
-            };
-            
+            const exportData = createBackupPayload();
+            const totalQuizzes = exportData.quizzes.length;
             const dataStr = JSON.stringify(exportData, null, 2);
             const blob = new Blob([dataStr], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
@@ -1222,9 +1524,92 @@
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
             
-            showToast(`Exported ${quizzes.length} quizzes! 📤`);
+            showToast(`Exported ${totalQuizzes} quizzes! 📤`);
         }
-        
+
+        function applyImportedState(importData) {
+            if (!importData) {
+                return;
+            }
+
+            if (importData.autoSave && typeof localStorage !== 'undefined') {
+                try {
+                    localStorage.setItem('memoryQuiz_autoSave', JSON.stringify(importData.autoSave));
+                } catch (error) {
+                    console.error('Failed to store auto-save data:', error);
+                }
+            }
+
+            if (importData.loopCounts && typeof importData.loopCounts === 'object') {
+                try {
+                    const entries = Object.entries(importData.loopCounts).map(([key, value]) => [key, Number(value) || 0]);
+                    loopCountsMap = new Map(entries);
+                    saveLoopCounts();
+                } catch (error) {
+                    console.error('Failed to load loop counts from backup:', error);
+                }
+            }
+
+            if (Object.prototype.hasOwnProperty.call(importData, 'voicePreference')) {
+                selectedVoiceId = importData.voicePreference || null;
+                storeVoicePreference(selectedVoiceId);
+            }
+
+            loadAutoSave();
+
+            if (speechSupported) {
+                refreshAvailableVoices({ force: true, announce: false });
+            } else {
+                updateVoiceStatus();
+            }
+        }
+
+        function integrateImportedData(importData, options = {}) {
+            if (!importData || !Array.isArray(importData.quizzes)) {
+                throw new Error('Invalid backup file format');
+            }
+
+            const { promptMerge = true, defaultMergeMode = true } = options;
+            const existingQuizzes = getSavedQuizzes();
+            const importCount = importData.quizzes.length;
+            let mergeMode = defaultMergeMode;
+
+            if (promptMerge && existingQuizzes.length > 0) {
+                mergeMode = confirm(
+                    `You have ${existingQuizzes.length} existing quizzes.\n\n` +
+                    `Click OK to MERGE (add ${importCount} more quizzes)\n` +
+                    `Click Cancel to REPLACE (delete existing and import ${importCount} quizzes)`
+                );
+            }
+
+            let newQuizzes;
+            let message;
+
+            if (mergeMode) {
+                const existingIds = new Set(existingQuizzes.map(q => q.id));
+                const uniqueImports = importData.quizzes.filter(q => !existingIds.has(q.id));
+                newQuizzes = [...existingQuizzes, ...uniqueImports];
+                message = `Merged! Added ${uniqueImports.length} new quizzes 📥`;
+            } else {
+                newQuizzes = importData.quizzes;
+                message = `Imported ${importCount} quizzes! 📥`;
+            }
+
+            newQuizzes = newQuizzes.map(quiz => {
+                const completionTotal = Math.max(0, parseInt(quiz.completionCount, 10) || 0);
+                return {
+                    ...quiz,
+                    completionCount: completionTotal
+                };
+            });
+
+            saveQuizzes(newQuizzes);
+            renderSavedList();
+            applyImportedState(importData);
+
+            return message;
+        }
+
         // Import quizzes from JSON file
         function importQuizzes(event) {
             const file = event.target.files[0];
@@ -1234,49 +1619,8 @@
             reader.onload = function(e) {
                 try {
                     const importData = JSON.parse(e.target.result);
-                    
-                    // Validate data structure
-                    if (!importData.quizzes || !Array.isArray(importData.quizzes)) {
-                        throw new Error('Invalid backup file format');
-                    }
-                    
-                    const existingQuizzes = getSavedQuizzes();
-                    const importCount = importData.quizzes.length;
-                    
-                    // Ask user about merge or replace
-                    let mergeMode = true;
-                    if (existingQuizzes.length > 0) {
-                        mergeMode = confirm(
-                            `You have ${existingQuizzes.length} existing quizzes.\n\n` +
-                            `Click OK to MERGE (add ${importCount} more quizzes)\n` +
-                            `Click Cancel to REPLACE (delete existing and import ${importCount} quizzes)`
-                        );
-                    }
-                    
-                    let newQuizzes;
-                    if (mergeMode) {
-                        // Merge: combine existing with imported (remove duplicates by ID)
-                        const existingIds = new Set(existingQuizzes.map(q => q.id));
-                        const uniqueImports = importData.quizzes.filter(q => !existingIds.has(q.id));
-                        newQuizzes = [...existingQuizzes, ...uniqueImports];
-                        showToast(`Merged! Added ${uniqueImports.length} new quizzes 📥`);
-                    } else {
-                        // Replace: use only imported quizzes
-                        newQuizzes = importData.quizzes;
-                        showToast(`Imported ${importCount} quizzes! 📥`);
-                    }
-
-                    newQuizzes = newQuizzes.map(quiz => {
-                        const completionTotal = Math.max(0, parseInt(quiz.completionCount, 10) || 0);
-                        return {
-                            ...quiz,
-                            completionCount: completionTotal
-                        };
-                    });
-
-                    saveQuizzes(newQuizzes);
-                    renderSavedList();
-                    
+                    const message = integrateImportedData(importData, { promptMerge: true, defaultMergeMode: true });
+                    showToast(message);
                 } catch (error) {
                     console.error('Import error:', error);
                     showToast('Error importing file! ❌');
