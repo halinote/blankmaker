@@ -794,6 +794,7 @@
             loopTimeoutId: null
         };
         const speechSupported = 'speechSynthesis' in window && typeof SpeechSynthesisUtterance !== 'undefined';
+        let preferredVoice = null;
         
         let currentMode = 'speaking'; // 'speaking' or 'writing'
         const STORAGE_KEY = 'memoryQuiz_savedQuizzes';
@@ -809,6 +810,10 @@
             utterance: null,
             currentButton: null
         };
+
+        if (speechSupported) {
+            initializePreferredVoice();
+        }
 
         generateQuizBtn.addEventListener('click', generateQuiz);
         downloadQuizBtn.addEventListener('click', downloadQuiz);
@@ -854,6 +859,79 @@
         
         // Load auto-saved text on startup
         loadAutoSave();
+
+        function initializePreferredVoice() {
+            const assignPreferredVoice = () => {
+                try {
+                    const voices = speechSynthesis.getVoices();
+                    if (!voices || voices.length === 0) {
+                        return;
+                    }
+                    const selected = pickEnglishVoice(voices);
+                    if (selected) {
+                        preferredVoice = selected;
+                    } else if (!preferredVoice) {
+                        preferredVoice = voices[0];
+                    }
+                } catch (error) {
+                    console.error('Voice selection error:', error);
+                }
+            };
+
+            assignPreferredVoice();
+            if (typeof speechSynthesis.addEventListener === 'function') {
+                speechSynthesis.addEventListener('voiceschanged', assignPreferredVoice);
+            } else if (typeof speechSynthesis.onvoiceschanged !== 'undefined') {
+                speechSynthesis.onvoiceschanged = assignPreferredVoice;
+            }
+        }
+
+        function pickEnglishVoice(voices) {
+            if (!voices || voices.length === 0) {
+                return null;
+            }
+            const lowerCaseMatch = (voice, target) =>
+                voice.lang && voice.lang.toLowerCase() === target;
+            const startsWithEn = voice =>
+                voice.lang && voice.lang.toLowerCase().startsWith('en');
+            
+            return voices.find(voice => lowerCaseMatch(voice, 'en-us')) ||
+                voices.find(voice => lowerCaseMatch(voice, 'en-gb')) ||
+                voices.find(startsWithEn) ||
+                voices.find(voice => /english/i.test(voice.name)) ||
+                null;
+        }
+
+        function ensurePreferredVoice() {
+            if (!speechSupported) {
+                return null;
+            }
+            if (preferredVoice) {
+                return preferredVoice;
+            }
+            try {
+                const voices = speechSynthesis.getVoices();
+                if (voices && voices.length > 0) {
+                    preferredVoice = pickEnglishVoice(voices) || voices[0];
+                }
+            } catch (error) {
+                console.error('Unable to ensure preferred voice:', error);
+            }
+            return preferredVoice;
+        }
+
+        function configureUtterance(utterance) {
+            if (!utterance) {
+                return;
+            }
+            const voice = ensurePreferredVoice();
+            if (voice) {
+                utterance.voice = voice;
+                utterance.lang = voice.lang || 'en-US';
+            } else {
+                utterance.lang = 'en-US';
+            }
+        }
 
         function switchMode(mode) {
             currentMode = mode;
@@ -1474,6 +1552,7 @@
             }
 
             const utterance = new SpeechSynthesisUtterance(speechState.sentence);
+            configureUtterance(utterance);
             speechState.utterance = utterance;
 
             utterance.onend = () => {
@@ -1657,6 +1736,7 @@
 
             const index = parseInt(button.dataset.index, 10);
             const utterance = new SpeechSynthesisUtterance(sentenceText);
+            configureUtterance(utterance);
             globalPlaybackState.utterance = utterance;
 
             utterance.onend = () => {
