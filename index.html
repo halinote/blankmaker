@@ -771,11 +771,11 @@
                 <label for="voice-select">음성 선택</label>
                 <div class="voice-select-row">
                     <select id="voice-select">
-                        <option value="">영어 음성을 불러오는 중...</option>
+                        <option value="">음성을 불러오는 중...</option>
                     </select>
                     <button type="button" id="voice-refresh">새로고침</button>
                 </div>
-                <div id="voice-status" class="voice-status">영어 음성을 탐색하고 있어요.</div>
+                <div id="voice-status" class="voice-status">사용 가능한 음성을 탐색하고 있어요.</div>
             </div>
         </div>
     </div>
@@ -980,33 +980,19 @@
             return availableVoices.find(voice => getVoiceIdentifier(voice) === id) || null;
         }
 
-        function isEnglishVoice(voice) {
-            if (!voice) {
-                return false;
-            }
-            const lang = (voice.lang || '').toLowerCase();
-            if (lang.startsWith('en')) {
-                return true;
-            }
-            if (/english/i.test(voice.name || '')) {
-                return true;
-            }
-            return false;
-        }
-
         function pickEnglishVoice(voices) {
             if (!voices || voices.length === 0) {
                 return null;
             }
-            const englishVoices = voices.filter(isEnglishVoice);
-            if (!englishVoices.length) {
-                return null;
-            }
             const lowerCaseMatch = (voice, target) =>
                 voice.lang && voice.lang.toLowerCase() === target;
-            return englishVoices.find(voice => lowerCaseMatch(voice, 'en-us')) ||
-                englishVoices.find(voice => lowerCaseMatch(voice, 'en-gb')) ||
-                englishVoices[0] ||
+            const startsWithEn = voice =>
+                voice.lang && voice.lang.toLowerCase().startsWith('en');
+            
+            return voices.find(voice => lowerCaseMatch(voice, 'en-us')) ||
+                voices.find(voice => lowerCaseMatch(voice, 'en-gb')) ||
+                voices.find(startsWithEn) ||
+                voices.find(voice => /english/i.test(voice.name)) ||
                 null;
         }
 
@@ -1030,7 +1016,7 @@
                     voiceSelect.innerHTML = '';
                     const option = document.createElement('option');
                     option.value = '';
-                    option.textContent = '영어 음성을 찾을 수 없어요';
+                    option.textContent = '사용 가능한 음성이 없어요';
                     voiceSelect.appendChild(option);
                     voiceSelect.disabled = true;
                 }
@@ -1050,27 +1036,7 @@
                 return langA.localeCompare(langB);
             });
 
-            const englishVoices = voices.filter(isEnglishVoice);
-
-            if (!englishVoices.length) {
-                availableVoices = [];
-                preferredVoice = null;
-                if (voiceSelect) {
-                    voiceSelect.disabled = true;
-                    voiceSelect.innerHTML = '';
-                    const option = document.createElement('option');
-                    option.value = '';
-                    option.textContent = '영어 음성을 찾을 수 없어요';
-                    voiceSelect.appendChild(option);
-                }
-                if (voiceRefreshBtn) {
-                    voiceRefreshBtn.disabled = false;
-                }
-                updateVoiceStatus({ announce });
-                return;
-            }
-
-            availableVoices = englishVoices;
+            availableVoices = voices;
             if (voiceRefreshBtn) {
                 voiceRefreshBtn.disabled = false;
             }
@@ -1084,7 +1050,7 @@
                 autoOption.textContent = '자동 선택 (권장)';
                 voiceSelect.appendChild(autoOption);
 
-                englishVoices.forEach(voice => {
+                voices.forEach(voice => {
                     const option = document.createElement('option');
                     option.value = getVoiceIdentifier(voice);
                     option.textContent = `${voice.name}${voice.lang ? ` (${voice.lang})` : ''}${voice.default ? ' ⭐' : ''}`;
@@ -1096,12 +1062,12 @@
             if (selectedVoiceId) {
                 voiceToUse = findVoiceById(selectedVoiceId);
                 if (!voiceToUse) {
-                    voiceToUse = pickEnglishVoice(englishVoices) || englishVoices[0] || null;
+                    voiceToUse = pickEnglishVoice(voices) || voices[0] || null;
                     selectedVoiceId = voiceToUse ? getVoiceIdentifier(voiceToUse) : null;
                     storeVoicePreference(selectedVoiceId);
                 }
             } else {
-                voiceToUse = pickEnglishVoice(englishVoices) || englishVoices[0] || null;
+                voiceToUse = pickEnglishVoice(voices) || voices[0] || null;
             }
 
             preferredVoice = voiceToUse;
@@ -1154,9 +1120,9 @@
                     showToast(selectedVoiceId ? `음성을 ${voice.name}으로 설정했어요 🎧` : `자동 선택된 음성: ${voice.name}`);
                 }
             } else if (availableVoices.length === 0) {
-                voiceStatus.textContent = '이 기기에서 영어 음성을 찾을 수 없어요. 기본 음성을 사용합니다.';
+                voiceStatus.textContent = '사용 가능한 음성을 찾을 수 없어요. 기본 음성을 사용합니다.';
                 if (announce) {
-                    showToast('영어 음성을 찾을 수 없어요 ❌');
+                    showToast('사용 가능한 음성을 찾을 수 없어요 ❌');
                 }
             } else {
                 voiceStatus.textContent = '음성을 선택해 주세요.';
